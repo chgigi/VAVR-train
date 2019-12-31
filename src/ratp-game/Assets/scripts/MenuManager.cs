@@ -23,4 +23,10 @@ public class MenuManager : MonoBehaviour
         NetManage.StartClient();
         Debug.Log(NetManage.clientLoadedScene);
     }
+
+    public void ClickHost()
+    {
+        Mirror.NetworkManager NetManage = NetworkObject.GetComponent<Mirror.NetworkManager>();
+        NetManage.StartHost();
+    }
 }
