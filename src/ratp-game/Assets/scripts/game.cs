@@ -71,14 +71,14 @@ public class game : MonoBehaviour
     void Start()
     {
         paring = new List<Tuple<int, int>>();
-
-        for(int i = 0; i < mat.Length; i++)
+        traininfo = (movetrain)train.GetComponent(typeof(movetrain));
+        for (int i = 0; i < mat.Length; i++)
         {
             paring.Add(new Tuple<int, int>(i, Random.Range(0, color.Length)));
             generateCube(i, paring[i].Item2);
         }
-        traininfo = (movetrain)train.GetComponent(typeof(movetrain));
-        currentPanneau = Instantiate(prefab, new Vector3(2.8f, 0.5f, 0), Quaternion.identity);
+       
+        currentPanneau = Instantiate(prefab, train.transform.position + new Vector3(2.8f, 0.5f, 50), Quaternion.identity);
         GameObject face = currentPanneau.transform.Find("sign/Front").gameObject;
         current = Random.Range(0, 20);
         face.GetComponent<Renderer>().material = mat[current];
