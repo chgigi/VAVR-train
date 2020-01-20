@@ -213,7 +213,7 @@ MonoBehaviour:
   serverTickRate: 30
   showDebugMessages: 1
   offlineScene: Menu
-  onlineScene: TheScene
+  onlineScene: Multi test
   transport: {fileID: 219711508}
   networkAddress: 127.0.0.1
   maxConnections: 2
@@ -221,7 +221,7 @@ MonoBehaviour:
   playerPrefab: {fileID: 8365066134552274882, guid: de8cec1c4b079dc46a4a7c0f77c703ff,
     type: 3}
   autoCreatePlayer: 1
-  playerSpawnMethod: 0
+  playerSpawnMethod: 1
   spawnPrefabs: []
 --- !u!4 &219711510
 Transform:
