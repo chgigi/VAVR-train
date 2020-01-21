@@ -39,8 +39,21 @@ public class game : Mirror.NetworkBehaviour
     private float seconds = 0f;
     [Mirror.SyncVar(hook = "OnActiveChangeTime")]
     public string tm;
+    private float bonusTime;
+    [Mirror.SyncVar(hook = "OnActiveChangeFinished")]
+    public bool hasfinished = false;
 
+    [Mirror.ClientRpc]
+    public void RpcupdateSpeed(float s)
+    {
+        speed = s;
+        Debug.LogWarning("Speed = " + speed.ToString());
+    }
 
+    private void OnActiveChangeFinished(bool fin)
+    {
+        hasfinished = fin;
+    }
 
     public void clickButton(int color)
     {
@@ -49,12 +62,17 @@ public class game : Mirror.NetworkBehaviour
             Cmdinvertpan();
             if (currentColor == color)
             {
-                //Destroy(currentPanneau);
                 CmdgeneratePanneau();
                 Cmdchangespeed(speed + 0.1f);
+                seconds -= 10f;
+                CmdchangeTime();
+                bonusTime = Time.time;
+
             }
             else
             {
+                seconds += 20f;
+                CmdchangeTime();
                 if (speed >= 0.05)
                 {
                     Cmdchangespeed(speed - 0.05f);
@@ -70,6 +88,7 @@ public class game : Mirror.NetworkBehaviour
     private void OnActiveChangeSpeed(float s)
     {
         speed = s;
+        Debug.LogWarning("hook speed on client!");
     }
     private void OnActiveChangeString(String s)
     {
@@ -103,9 +122,10 @@ public class game : Mirror.NetworkBehaviour
     }
 
     [Mirror.Command]
-    private void CmdDisable()
+    private void CmdFinished()
     {
-        
+        hasfinished = true;
+        speed = 0;
     }
 
     [Mirror.Command]
@@ -219,6 +239,7 @@ public class game : Mirror.NetworkBehaviour
 
     void Start()
     {
+        bonusTime = Time.time;
         paring = new List<Tuple<int, int>>();
         players = new List<GameObject>();
         if (!isClientOnly)
@@ -251,46 +272,73 @@ public class game : Mirror.NetworkBehaviour
     {
         speed = newspeed;
         Debug.LogWarning("Speed changed on client!");
+        //RpcupdateSpeed(newspeed);
     }
 
-    void checkpan()
-    {
-        newpanneau = other.newpanneau;
-        if (newpanneau)
-        {
-            Debug.LogWarning("regeneraaate panneau");
-            regeneratePanneau();
-        }
-    }
-
-    void updateSpeedTM()
-    {
-        speed = other.speed;
-        tm = other.tm;
-        traininfo.speed = speed;
-        m_text.text = tm;
-        textspeed.text = "Speed : " + (1000 * speed).ToString("00");
-    }
 
     private void Update()
     {
+        if (!isLocalPlayer)
+            return;
         if(hasstarted)
         {
-            if (!isClientOnly)
+            if (isServer)
             {
                 seconds = seconds + Time.deltaTime;
-                CmdchangeTime();
-                if (speed > 0.02)
-                    Cmdchangespeed(speed - 0.0001f);
+                if (train.transform.position.z >= 130)
+                {
+                    if(!hasfinished)
+                        CmdFinished();
+                    infoText.text = "Partie terminée !";
+                }
+                else
+                {
+                    CmdchangeTime();
+                    if (Time.time - bonusTime <= 2)
+                    {
+                        Debug.LogWarning("la c'est le bonus");
+                    }
+                    else
+                    {
+                        if (speed > 0.02)
+                            Cmdchangespeed(speed - 0.0001f);
+                    }
+
+                }
                 traininfo.speed = speed;
                 m_text.text = tm;
                 textspeed.text = "Speed : " + (1000 * speed).ToString("00");
+
             }
-            else
+            else if(isClientOnly)
             {
-                Debug.LogWarning("Dans la boucle?");
-                checkpan();
-                updateSpeedTM();
+                
+                hasfinished = other.hasfinished;
+                speed = other.speed;
+                tm = other.tm;
+                m_text.text = tm;
+                textspeed.text = "Speed : " + (1000 * speed).ToString("00");
+                speed -= 0.002f;
+                if(train.transform.position.z < 130)
+                    traininfo.speed = speed;
+                else
+                {
+                    traininfo.speed = 0;
+                }
+
+                if (hasfinished)
+                {
+                    infoText.text = "Partie terminée !";
+                }
+                else
+                {
+                    newpanneau = other.newpanneau;
+                    if (newpanneau)
+                    {
+                        regeneratePanneau();
+                    }
+
+                }
             }
             
         }
@@ -301,7 +349,7 @@ public class game : Mirror.NetworkBehaviour
             if (p.Length == 2)
             {
                 
-                if (!isClientOnly)
+                if (isServer)
                 {
                     players.Add(p[1]);
                     other = ((game)players[1].GetComponent(typeof(game)));
@@ -310,7 +358,7 @@ public class game : Mirror.NetworkBehaviour
                     CmdgeneratePanneau();
                     infoText.text = "";
                 }
-                else
+                else if(isClientOnly)
                 {
                     if(other.hasstarted)
                     {
