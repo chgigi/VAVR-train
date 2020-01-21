@@ -12,147 +12,328 @@ public class game : Mirror.NetworkBehaviour
     public GameObject indice;
     public Material[] mat;
     public Material[] color;
-    [Mirror.SyncVar]
-    private GameObject currentPanneau;
-    [Mirror.SyncVar]
-    private int currentcolor;
-    [Mirror.SyncVar]
-    private List<Tuple<int, int>> paring;
-    [Mirror.SyncVar]
-    private int current;
-    [Mirror.SyncVar]
-    private float seconds;
     public Text m_text;
     public Text textspeed;
-    public Text infoText;
-    [Mirror.SyncVar]
-    public GameObject train;
-    [Mirror.SyncVar]
+    [SerializeField] public Text infoText;
+    private GameObject train;
     private movetrain traininfo;
-    [Mirror.SyncVar]
-    private bool bonus = false;
-    [Mirror.SyncVar]
-    private float bonustime;
-    [Mirror.SyncVar]
-    private bool started = false;
-    [Mirror.SyncVar]
-    private float speed = 0;
+    public bool player1;
+    private game other;
+    [Mirror.SyncVar(hook = "OnActiveChange")]
+    public bool hasstarted = false;
+    private List<Tuple<int, int>> paring;
+    [Mirror.SyncVar(hook = "OnActiveChangeSeed")]
+    public int seed;
+    [Mirror.SyncVar(hook = "OnActiveChangeCurrent")]
+    public int current;
+    [Mirror.SyncVar(hook = "OnActiveChangeCurrentColor")]
+    public int currentColor;
+    private GameObject currentPanneau;
+    [Mirror.SyncVar(hook = "OnActiveChangePanneau")]
+    public bool newpanneau = false;
+    [Mirror.SyncVar(hook = "OnActiveChangeString")]
+    public string rd;
+    private List<GameObject> players;
+    [Mirror.SyncVar(hook = "OnActiveChangeSpeed")]
+    public float speed;
+    private float seconds = 0f;
+    [Mirror.SyncVar(hook = "OnActiveChangeTime")]
+    public string tm;
 
 
-    [Mirror.Command]
-    void generateCube(int i, int j)
-    {
-        float x, y, z;
-        x = train.transform.position.x;
-        z = train.transform.position.z - 20;
-        y = 2.5f;
-        GameObject c = Instantiate(indice, new Vector3(x, y, z), Quaternion.identity);
-        c.transform.parent = train.transform;
-        c.transform.Find("Front").gameObject.GetComponent<Renderer>().material = mat[i];
-        c.transform.Find("Back").gameObject.GetComponent<Renderer>().material = color[j];
-        c.transform.Find("Bottom").gameObject.GetComponent<Renderer>().material = color[j];
-        c.transform.Find("Top").gameObject.GetComponent<Renderer>().material = color[j];
-        c.transform.Find("Left").gameObject.GetComponent<Renderer>().material = color[j];
-        c.transform.Find("Right").gameObject.GetComponent<Renderer>().material = color[j];
-        Mirror.NetworkServer.Spawn(c);
-    }
 
-    [Mirror.Command]
     public void clickButton(int color)
     {
-        if (started)
+        if (hasstarted)
         {
-            if (currentcolor == color)
+            Cmdinvertpan();
+            if (currentColor == color)
             {
-                seconds -= 10;
-                Destroy(currentPanneau);
-                generatePanneau();
-                traininfo.add_speed(0.1f);
-                bonus = true;
-                bonustime = Time.time;
+                //Destroy(currentPanneau);
+                CmdgeneratePanneau();
+                Cmdchangespeed(speed + 0.1f);
             }
             else
             {
-                seconds += 20;
-                if (traininfo.get_speed() >= 0.05)
-                    traininfo.add_speed(-0.05f);
+                if (speed >= 0.05)
+                {
+                    Cmdchangespeed(speed - 0.05f);
+                }
             }
         }
     }
 
-
-    void generateParing()
+    private void OnActiveChangeTime(string t)
     {
-        if (isServer)
+        tm = t;
+    }
+    private void OnActiveChangeSpeed(float s)
+    {
+        speed = s;
+    }
+    private void OnActiveChangeString(String s)
+    {
+        rd = s;
+    }
+
+    private void OnActiveChangeCurrent(int c)
+    {
+        current = c;
+    }
+
+    private void OnActiveChangeCurrentColor(int c)
+    {
+        currentColor = c;
+    }
+    private void OnActiveChangeSeed(int updatedActive)
+    {
+        seed = updatedActive;
+    }
+
+    private void OnActiveChange(bool updatedActive)
+    {
+        hasstarted = updatedActive;
+    }
+
+    private void OnActiveChangePanneau(bool p)
+    {
+        newpanneau = p;
+        Debug.LogWarning("update pannal state");
+
+    }
+
+    [Mirror.Command]
+    private void CmdDisable()
+    {
+        
+    }
+
+    [Mirror.Command]
+    void CmdgenerateParing()
+    {
+        string s = "";
+        seed = Random.seed;
+        for (int i = 0; i < mat.Length; i++)
         {
-            started = true;
-            for (int i = 0; i < mat.Length; i++)
-            {
-                paring.Add(new Tuple<int, int>(i, Random.Range(0, color.Length)));
-                generateCube(i, paring[i].Item2);
-            }
-            generatePanneau();
-            traininfo.set_speed(0.11f);
+            paring.Add(new Tuple<int, int>(i, Random.Range(0, color.Length)));
+            s += paring[i].Item2.ToString() + "-";
+        }
+        rd = s;
+    }
+
+    private void regenerateParing()
+    {
+        seed = other.seed;
+        rd = other.rd;
+        string[] st = rd.Split('-');
+        for (int i = 0; i < 20; i++)
+        {
+            paring.Add(new Tuple<int, int>(i, Int32.Parse(st[i])));
         }
     }
 
     [Mirror.Command]
-    void generatePanneau()
+    void Cmdinvertpan()
     {
+        newpanneau = false;
+    }
+
+    [Mirror.Command]
+    void CmdchangeTime()
+    {
+        int mn = (int)seconds / 60;
+        int sec = (int)seconds % 60;
+        tm = "Time : " + mn.ToString() + ":" + sec.ToString("00"); 
+    }
+
+    [Mirror.Command]
+    void CmdgeneratePanneau()
+    {
+        if (currentPanneau != null)
+            Destroy(currentPanneau);
         current = Random.Range(0, 20);
-        currentcolor = paring[current].Item2;
-        Destroy(currentPanneau);
+        currentColor = paring[current].Item2;
         currentPanneau = Instantiate(prefab, train.transform.position + new Vector3(2.8f, 0.5f, 50), Quaternion.identity);
         GameObject face = currentPanneau.transform.Find("sign/Front").gameObject;
         face.GetComponent<Renderer>().material = mat[current];
         Mirror.NetworkServer.Spawn(currentPanneau);
+        currentPanneau = GameObject.FindGameObjectWithTag("panneau");
+        newpanneau = true;
+    }
+
+    void regeneratePanneau()
+    {
+        other.newpanneau = false;
+        if(currentPanneau != null)
+            Destroy(currentPanneau);
+        current = other.current;
+        currentColor = other.currentColor;
+        currentPanneau = GameObject.FindGameObjectWithTag("panneau");
+        GameObject face = currentPanneau.transform.Find("sign/Front").gameObject;
+        face.GetComponent<Renderer>().material = mat[current];
+    }
+
+    [Mirror.Command]
+    void CmdgenerateCube()
+    {
+        float x, y, z;
+        x = train.transform.position.x;
+        z = train.transform.position.z - 10;
+        y = 2.5f;
+        for (int i = 0; i < 20; i++)
+        {
+            int j = paring[i].Item2;
+            GameObject c = Instantiate(indice, new Vector3(x, y, z), Quaternion.identity);
+            c.transform.parent = train.transform;
+            c.transform.Find("Front").gameObject.GetComponent<Renderer>().material = mat[i];
+            c.transform.Find("Back").gameObject.GetComponent<Renderer>().material = color[j];
+            c.transform.Find("Bottom").gameObject.GetComponent<Renderer>().material = color[j];
+            c.transform.Find("Top").gameObject.GetComponent<Renderer>().material = color[j];
+            c.transform.Find("Left").gameObject.GetComponent<Renderer>().material = color[j];
+            c.transform.Find("Right").gameObject.GetComponent<Renderer>().material = color[j];
+            Mirror.NetworkServer.Spawn(c);
+        }
+        tm = "Time: 0:00";
+        speed = 0.11f;
+        hasstarted = true;
+    }
+
+    void regenerateCube()
+    {
+        GameObject[] indices = GameObject.FindGameObjectsWithTag("indice");
+        for (int i = 0; i < 20; i++)
+        {
+            GameObject ind = indices[i];
+            int j = paring[i].Item2;
+            ind.transform.parent = train.transform;
+            ind.transform.Find("Front").gameObject.GetComponent<Renderer>().material = mat[i];
+            ind.transform.Find("Back").gameObject.GetComponent<Renderer>().material = color[j];
+            ind.transform.Find("Bottom").gameObject.GetComponent<Renderer>().material = color[j];
+            ind.transform.Find("Top").gameObject.GetComponent<Renderer>().material = color[j];
+            ind.transform.Find("Left").gameObject.GetComponent<Renderer>().material = color[j];
+            ind.transform.Find("Right").gameObject.GetComponent<Renderer>().material = color[j];
+            ind.transform.position = transform.position + new Vector3(0, 0, 10);
+        }
+        hasstarted = true;
     }
 
     void Start()
     {
         paring = new List<Tuple<int, int>>();
-        traininfo = (movetrain)train.GetComponent(typeof(movetrain));
-        traininfo.set_speed(0);
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        if(started)
+        players = new List<GameObject>();
+        if (!isClientOnly)
         {
-            if(isServer)
-            {
-                seconds += Time.deltaTime;
-                if (bonus && Time.time - bonustime > 2)
-                    bonus = false;
-                if (!bonus)
-                    if (traininfo.get_speed() > 0.02)
-                        traininfo.add_speed(-0.0001f);
-
-                speed = traininfo.get_speed();
-            }
-            m_text.text = "Time : " + ((int)seconds / 60).ToString() + ":" + ((int)seconds % 60).ToString("00");
-            textspeed.text = "Speed : " + (1000 * traininfo.get_speed()).ToString("00");
-            if (!bonus)
-                if (traininfo.get_speed() > 0.02)
-                    traininfo.add_speed(-0.0001f);
-            traininfo.set_speed(speed);
+            player1 = true;
+            players.Add(this.gameObject);
         }
         else
         {
-                GameObject[] players = GameObject.FindGameObjectsWithTag("Player");
-                infoText.text = "Waiting for player 2";
-                if (players.Length == 2)
-                {
-                    players[0].transform.parent = train.transform;
-                    players[1].transform.parent = train.transform;
-                    
+            player1 = false;
+            GameObject[] p = GameObject.FindGameObjectsWithTag("Player");
+            for (int i = 0; i < 2; i++)
+            {
+                if (p[i] != this.gameObject)
+                    players.Add(p[i]);
+            }
+            players.Add(this.gameObject);
+            other = ((game)players[0].GetComponent(typeof(game)));
+        }
 
-                    generateParing();
-                    infoText.text = "";
-                }
-            
+        train = GameObject.Find("Tram_joueur1");
+        transform.parent = train.transform;
+        traininfo = (movetrain)train.GetComponent(typeof(movetrain));
+        traininfo.speed = 0f;
+
+    }
+
+    [Mirror.Command]
+    void Cmdchangespeed(float newspeed)
+    {
+        speed = newspeed;
+        Debug.LogWarning("Speed changed on client!");
+    }
+
+    void checkpan()
+    {
+        newpanneau = other.newpanneau;
+        if (newpanneau)
+        {
+            Debug.LogWarning("regeneraaate panneau");
+            regeneratePanneau();
         }
     }
+
+    void updateSpeedTM()
+    {
+        speed = other.speed;
+        tm = other.tm;
+        traininfo.speed = speed;
+        m_text.text = tm;
+        textspeed.text = "Speed : " + (1000 * speed).ToString("00");
+    }
+
+    private void Update()
+    {
+        if(hasstarted)
+        {
+            if (!isClientOnly)
+            {
+                seconds = seconds + Time.deltaTime;
+                CmdchangeTime();
+                if (speed > 0.02)
+                    Cmdchangespeed(speed - 0.0001f);
+                traininfo.speed = speed;
+                m_text.text = tm;
+                textspeed.text = "Speed : " + (1000 * speed).ToString("00");
+            }
+            else
+            {
+                Debug.LogWarning("Dans la boucle?");
+                checkpan();
+                updateSpeedTM();
+            }
+            
+        }
+        else
+        {
+            infoText.text = "Waiting for player 2";
+            GameObject[] p = GameObject.FindGameObjectsWithTag("Player");
+            if (p.Length == 2)
+            {
+                
+                if (!isClientOnly)
+                {
+                    players.Add(p[1]);
+                    other = ((game)players[1].GetComponent(typeof(game)));
+                    CmdgenerateParing();
+                    CmdgenerateCube();
+                    CmdgeneratePanneau();
+                    infoText.text = "";
+                }
+                else
+                {
+                    if(other.hasstarted)
+                    {
+                        regenerateParing();
+                        regenerateCube();
+                        regeneratePanneau();
+                        speed = other.speed;
+                        tm = other.tm;
+                        infoText.text = "";
+                    }
+                }
+            }
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
 }
