@@ -40,6 +40,8 @@ public class game : Mirror.NetworkBehaviour
     [Mirror.SyncVar(hook = "OnActiveChangeTime")]
     public string tm;
     private float bonusTime;
+    [Mirror.SyncVar(hook = "OnActiveChangeFinished")]
+    public bool hasfinished = false;
 
     [Mirror.ClientRpc]
     public void RpcupdateSpeed(float s)
@@ -48,6 +50,10 @@ public class game : Mirror.NetworkBehaviour
         Debug.LogWarning("Speed = " + speed.ToString());
     }
 
+    private void OnActiveChangeFinished(bool fin)
+    {
+        hasfinished = fin;
+    }
 
     public void clickButton(int color)
     {
@@ -56,7 +62,6 @@ public class game : Mirror.NetworkBehaviour
             Cmdinvertpan();
             if (currentColor == color)
             {
-                //Destroy(currentPanneau);
                 CmdgeneratePanneau();
                 Cmdchangespeed(speed + 0.1f);
                 seconds -= 10f;
@@ -117,9 +122,10 @@ public class game : Mirror.NetworkBehaviour
     }
 
     [Mirror.Command]
-    private void CmdDisable()
+    private void CmdFinished()
     {
-        
+        hasfinished = true;
+        speed = 0;
     }
 
     [Mirror.Command]
@@ -269,24 +275,6 @@ public class game : Mirror.NetworkBehaviour
         //RpcupdateSpeed(newspeed);
     }
 
-    void checkpan()
-    {
-        newpanneau = other.newpanneau;
-        if (newpanneau)
-        {
-            Debug.LogWarning("regeneraaate panneau");
-            regeneratePanneau();
-        }
-    }
-
-    void updateSpeedTM()
-    {
-        speed = other.speed;
-        tm = other.tm;
-        traininfo.speed = speed;
-        m_text.text = tm;
-        textspeed.text = "Speed : " + (1000 * speed).ToString("00");
-    }
 
     private void Update()
     {
@@ -297,25 +285,60 @@ public class game : Mirror.NetworkBehaviour
             if (isServer)
             {
                 seconds = seconds + Time.deltaTime;
-                CmdchangeTime();
-                if (Time.time - bonusTime <= 2)
+                if (train.transform.position.z >= 130)
                 {
-                    Debug.LogWarning("la c'est le bonus");
+                    if(!hasfinished)
+                        CmdFinished();
+                    infoText.text = "Partie terminée !";
                 }
                 else
                 {
-                    if (speed > 0.02)
-                        Cmdchangespeed(speed - 0.0001f);
+                    CmdchangeTime();
+                    if (Time.time - bonusTime <= 2)
+                    {
+                        Debug.LogWarning("la c'est le bonus");
+                    }
+                    else
+                    {
+                        if (speed > 0.02)
+                            Cmdchangespeed(speed - 0.0001f);
+                    }
+
                 }
                 traininfo.speed = speed;
                 m_text.text = tm;
                 textspeed.text = "Speed : " + (1000 * speed).ToString("00");
+
             }
             else if(isClientOnly)
             {
-                Debug.LogWarning("on passe ici");
-                checkpan();
-                updateSpeedTM();
+                
+                hasfinished = other.hasfinished;
+                speed = other.speed;
+                tm = other.tm;
+                m_text.text = tm;
+                textspeed.text = "Speed : " + (1000 * speed).ToString("00");
+                speed -= 0.002f;
+                if(train.transform.position.z < 130)
+                    traininfo.speed = speed;
+                else
+                {
+                    traininfo.speed = 0;
+                }
+
+                if (hasfinished)
+                {
+                    infoText.text = "Partie terminée !";
+                }
+                else
+                {
+                    newpanneau = other.newpanneau;
+                    if (newpanneau)
+                    {
+                        regeneratePanneau();
+                    }
+
+                }
             }
             
         }
