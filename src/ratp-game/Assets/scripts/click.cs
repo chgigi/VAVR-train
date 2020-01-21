@@ -5,7 +5,7 @@ using UnityEngine;
 public class click : MonoBehaviour
 {
     public int color;
-    public GameObject gamemanager;
+    private GameObject gamemanager;
     private bool pushed = false;
     private float t = 10; 
 
@@ -20,6 +20,11 @@ public class click : MonoBehaviour
         }
         g.clickButton(color);
     }
+
+    public void set_manager(GameObject player)
+    {
+        gamemanager = player;
+    }
     // Start is called before the first frame update
     void Start()
     {
@@ -29,6 +34,7 @@ public class click : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        //Debug.Log(gamemanager);
         if(pushed)
         {
             t = t - 0.1f;

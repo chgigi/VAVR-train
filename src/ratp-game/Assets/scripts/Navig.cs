@@ -14,7 +14,15 @@ public class Navig : Mirror.NetworkBehaviour
 
     public override void OnStartLocalPlayer()
     {
+        //gameObject.GetComponent(typeof(game))
+        GetComponent<game>().enabled = true;
         camera.gameObject.active = true;
+        gameObject.transform.Find("Canvas").gameObject.active = true;
+        foreach (Transform child in GameObject.Find("game prefab package/Tram_joueur1/console").transform)
+        {
+            click g = (click)child.gameObject.GetComponent(typeof(click));
+            g.set_manager(transform.gameObject);
+        }
     }
 
     void Start () {
